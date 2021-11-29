@@ -188,6 +188,66 @@
         </code></pre>
       </section>
 
+      <!-- Slide 5-->
+      <section data-transition="fade-in">
+        <h3>Execution Plan</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+           An abstraction that is closer to the implementation
+           That's called Ops
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Execution Plan</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+          sealed trait Ops[A]
+
+  object Ops {
+    final case class Noop[A](query: A) extends Ops[A]
+    final case class Partial[A](ops: Ops[A], forWindow: Window, remainingWindow: Window) extends Ops[A]
+    final case class Union[A](left: Ops[A], leftWindow: Window, right: Ops[A], rightWindow: Window) extends Ops[A]
+    final case class Fail[A](message: String) extends Ops[A]
+    final case class Sum[A](nonEmptyChunk: NonEmptyChunk[Ops[C, A]], executionStrategy: Option[ExecutionStrategy] = None) extends Ops[A]
+    final case class OrElse[A](self: Ops[C, A], leftWindow: Window, that: Ops[C, A], rightWindow: Window) extends Ops[A]
+  }
+
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Program Flow</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+          Request                 => Ops[Query[(String, A)]]
+          Ops[Query[(String, A)]] => Ops[ZStream[Any, Error, (String, A)]]
+          Ops[ZStream[Any, Error, (String, A)]] => ZStream[Any, Error, (String, A)]
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Execution Flow</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+          def plan(request: Request[A]): Ops[Query[(String, A)]] = {
+            request.metric match {
+              case Metric.Within(metric, start, end) => 
+              val requested = request.window
+              val available = Window(start.toInstant(now).truncatedTo(ChronoUnit.MINUTES), end.toInstant(now).truncatedTo(ChronoUnit.MINUTES))
+
+              if (requested.isSubsetOf(available)) {
+                selectQuery(request.withMetric(metric)).map(_.withWindow(requested))
+              } else if (requested.isNotIn(available)) {
+                Ops.Fail(
+                  s"The metric (for requested window ${requested}) is not available in the data-source (flat-schema/aurora). Note: mode:default means last 6 hrs will be from aurora and rest from flat-schema. May be the reason for failure is, metric is not defined for either flat-schema or aurora. Change mode to none if metric is available only in 1 datasource"
+                )
+              } else {
+                Ops.Partial(
+                  selectQuery(request.withMetric(metric).withWindow(requested.intersect(available)))
+                )
+              }    
+            }
+          }
+        </code></pre>
+      </section>
+
 
       <!-- Slide -->
       <section data-transition="fade-out">
