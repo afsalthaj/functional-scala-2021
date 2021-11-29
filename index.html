@@ -1,0 +1,364 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <title>reveal.js</title>
+
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/reveal.css">
+  <link rel="stylesheet" href="css/theme/moon.css">
+
+  <!-- Theme used for syntax highlighting of code -->
+  <link rel="stylesheet" href="lib/css/atom-one-dark.css">
+
+
+  <!-- Printing and PDF exports -->
+  <script>
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.type = 'text/css';
+    link.href = window.location.search.match(/print-pdf/gi) ? 'css/print/pdf.css' : 'css/print/paper.css';
+    document.getElementsByTagName('head')[0].appendChild(link);
+
+  </script>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <!-- Heading section -->
+      <section data-markdown>
+        <textarea data-template>
+            ## Make your App Transparent
+	      </textarea>
+      </section>
+
+      <section data-markdown>
+        <textarea data-template>
+            ## Build a basic analytics engine
+            ## Make it observable through Query Planner - A sneak peak into functional design.
+            ## Bring observability through tracing and execution summary 
+                - A quick idea of Attribute Grammer with Recursion schemes
+	      </textarea>
+      </section>
+
+
+
+      <section data-transition="fade-out">
+        <h3>Make your platform transparent </h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+          
+          Make your platform observable through metrics with a metrics UI
+          There existed a service that runs in the backend to calculate these metrics
+          Metrics existed in various shapes in different sources
+          Took days or even weeks to bring this metrics in production
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-out">
+        <h3>Metrics calculation</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+          
+        1. Data for a feature/metric can exist in multiple sources.
+        2. At different time periods - union 
+        3. Or even you need to try multiple sources
+        4. + optimisations 
+
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-out">
+        <h3>Metrics calculation</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+          
+        1. When you ask the service, can the service emit what it tries to do.
+        2. When it finishes computation, does it provide what it has actually done.
+
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-out">
+        <h3>Analytics Engine</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+          
+        Infact, we started with a specific problem but essentially
+        the problem statement is quite common in our industry.
+
+        </code></pre>
+      </section>
+
+      <!-- Slide 2 -->
+      <section data-transition="fade-out">
+        <h3>How to solve?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+          
+        An execution planner
+        An execution summary
+
+        </code></pre>
+      </section>
+
+      <!-- Slide 2 -->
+      <section data-transition="fade-out">
+        <h3>How to solve?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+         // In our case we need to be able to define a metric
+         sealed trait Metric[A]
+
+         object Metric {
+          case class Source[A](dataSource: DataSource[A])                     extends Metric[A] 
+          case class Ratio[A](numerator: Metric[A], denominator: Metric[A])   extends Metric[A]
+          case class Sum[A](left: Metric[A], right: Metric[A])                extends Metric[A]
+          case class OrElse[A](left: MetricDsl[A], right: MetricDsl[A])       extends MetricDsl[A]
+          case class Within[A](metric: Metric[A], start: RelativeTime, end: RelativeTime) extends Metric[A]
+         }
+      
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>DataSource</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+     sealed trait RelativeTime
+       
+     object RelativeTime {
+       final case object Now                          extends RelativeTime
+       final case object Epoch                        extends RelativeTime
+       final case class BeforeNow(duration: Duration) extends RelativeTime
+       final case class At(instant: Instant)          extends RelativeTime
+     }
+
+        </code></pre>
+      </section>
+
+
+      <!-- Slide 3 -->
+
+      <section data-transition="fade-in">
+        <h3>DataSource</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+          sealed trait DataSource[A] 
+
+          object DataSource {
+            final case class Empty[A]()                                  extends DataSource[A]
+            final case class AwsS3[A](metricName: String)                extends DataSource[A]
+            final case class Postgres[A](from: AuroraLogic[A])           extends DataSource[A]
+            final case class InMemoryCache[A](dataSource: DataSource[A]) extends DataSource[A]
+          }
+
+        </code></pre>
+      </section>
+
+      <!-- Slide 4 -->
+
+      <section data-transition="fade-in">
+        <h3>Query</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+          // We need to represent the operations done at each datasource level
+          sealed trait Query[A]
+
+          object Query {
+            final case class FromCache[A](input: DataSource[_], window: Window) extends Query[A]
+            final case class FromS3[A](request: S3.Request) extends Query[A]
+            sealed trait SqlQuery[A] extends Query[A]
+            object SqlQuery {
+              ....
+
+            }
+
+          }
+
+        </code></pre>
+      </section>
+
+      <!-- Slide 5-->
+      <section data-transition="fade-in">
+        <h3>Sql Query</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+          final case class Select[A](expr: Expr[A]) extends SqlQuery[A]
+          final case class From[A](q1: SqlQuery[A], q2: SqlQuery[A]) extends SqlQuery[A]
+          final case class Filter[A](query: SqlQuery[A], expr: Expr[Boolean]) extends SqlQuery[A]
+          final case class GroupBy[A, B](query: SqlQuery[A], expr: Expr[B]) extends SqlQuery[A] 
+          final case class InnerJoin[A, B](q1: SqlQuery[A], q2: SqlQuery[B], onLeft: String, onRight: String) extends SqlQuery[A]
+        </code></pre>
+      </section>
+
+
+      <!-- Slide -->
+      <section data-transition="fade-out">
+        <h3>Metric was Data, and ExecPlan is Data too</h3>
+
+        Hence Exec Plan can be documented too - Demo
+
+      </section>
+
+      <!-- Slide -->
+      <section data-transition="fade-out">
+        <h3>ExecPlan knows about</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim >
+          // Exec-Plan knows about  
+  
+          All data sources, when they are  queried at what time-slice
+          Logic of metric, and points of splitting, merging (example: 10M m1 is Sum(10 PT1M from FS))
+          Caching, query cache, insert into cache
+          Fall-back decisions (ex: if failed to hit flat-schema, getting from aurora)
+          Special cases (Example: Get an extra time window for continued-session metric)
+          Precise control of parallelism. Even at the logic of Metric.scala
+          TODO: And being able to inject perf at every single step in the execution
+          // All of it possible with a careful mix of `Ops.scala` and `Query.scala` with `Metric.scala`
+  
+          //
+        </code></pre>
+      </section>
+
+
+      <!-- Slide -->
+      <section data-transition="fade-out">
+        <h3>ExecPlan is not a fancy addition</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim >
+
+        1. Debugging
+        2. Comparing releases of Metric-Service 
+        // **Most of the time** avoiding spending time on perf.scala 
+        // comparison if exec plan is unchanged between releases (i.e, Not
+        // just comparing sql queries - but the entire flow of program)
+        3. Better visibility around how to improve performance (avoid smashing flatschema by sequencing num and den
+        in ratio metric)
+        
+        // Ofcourse, a very interesting piece to just play with!!
+
+      </code></pre>
+
+      </section>
+
+      <!-- Slide -->
+      <section data-transition="fade-out">
+        <h3>A glance at Ops.scala</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
+          sealed trait Ops[A]
+
+          case class Sum(list: List[Ops[A]]) extends Ops[A]
+          case class Ratio(x: Ops[A], b: Ops[A]) extends Ops[A]
+          case class OrElse(x: Ops[A], b: Ops[A]) extends Ops[A]
+        
+
+        </code></pre>
+      </section>
+
+      <!-- Slide -->
+      <section data-transition="fade-out">
+        <h3>A glance at Query.scala</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
+              sealed trait Query[A]
+    
+              case class FlatSchemaRequest(request: Request[A]) extends Query[A]
+              case class CacheQuery[A](cacheKey: CacheKey) extends Query[A]
+
+              sealed trait SqlQuery[A] extends Query[A]
+              object SqlQuery {
+                case class Select(tableName: String, expr: Expr[A]) extends SqlQuery[A]
+                ...
+              }
+              
+            
+    
+            </code></pre>
+      </section>
+
+      <!-- Slide -->
+      <section data-transition="fade-out">
+        <h3>ExecPlan</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
+          def default(request: SpotlightRequest[A]): Ops[Query[(String, A)]] = 
+            request.metric match ....   
+        </code></pre>
+      </section>
+
+
+      <!-- Slide -->
+      <section data-transition="fade-out">
+        <h3>Optimisers, slices, merging, splitting etc etc</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
+
+        // That's nothing but a function
+
+        case class Optimiser[A](exec: (SpotlightRequest[A], Ops[Query[A]]) => Ops[Query[A]])
+        // Demo, README
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-out">
+        <h3>A summary of optimiser</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
+          Ops.Sum[Query[Double]]  ==> Ops.Noop[Query[Double]]
+          // This is when we merge multiple queries to form almost a single query using inner joins, and calculate the metric.
+          // i.e Ops.Sum[Query[Double]] can be converted to Ops.Noop[Query[Double]] (<=> Query[Double])
+ 
+          Ops.Noop[Query[Double]] ==> Ops.Sum[Query[Double]
+         // Query[Double] can be splitted based on time window to form a List[Query[Double]] and then use Ops.Sum.
+         // i.e, Query.Noop[Query[Double]]is converted to Ops.Sum[Query[Double]]
+          </code></pre>
+      </section>
+
+      <section data-transition="fade-out">
+        <h3>Visibility on optimisers</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
+           // Output of optimiser is ExecPlan[A] itself, and it can be documented too
+           // Optimisers naturally handles monoidal and non monoidal metrics. Example how to optimise a ratio metric? (See optimisers.scala)
+          </code></pre>
+      </section>
+
+      <section data-transition="fade-out">
+        <h3>(Why)Wheels package and Typesafety</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
+           // Talking to database was done using two typeclasses, Primitive and Composite. Typesafe. Ask for Double, and get a real Double
+           // No library dependencies - No doobie, ConnectionIO etc yet
+           // Streaming currently done using simple LazyList, opportunity to do better effectful streams
+           // Basic concurrency is set using `ZIO`
+          </code></pre>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="js/reveal.js"></script>
+
+  <script>
+    // More info about config & dependencies:
+    // - https://github.com/hakimel/reveal.js#configuration
+    // - https://github.com/hakimel/reveal.js#dependencies
+    Reveal.initialize({
+      // ...
+
+      // The "normal" size of the presentation, aspect ratio will be preserved
+      // when the presentation is scaled to fit different resolutions. Can be
+      // specified using percentage units.
+      width: 1300,
+      height: 750,
+
+      // Factor of the display size that should remain empty around the content
+      margin: 0.1,
+
+      // Bounds for smallest/largest possible scale to apply to content
+      minScale: 0.2,
+      maxScale: 1.5,
+      history: true,
+      dependencies: [
+        { src: 'plugin/markdown/marked.js' },
+        { src: 'plugin/markdown/markdown.js' },
+        { src: 'plugin/notes/notes.js', async: true },
+        { src: 'plugin/highlight/highlight.js', async: true },
+        { src: 'https://d3js.org/d3.v4.min.js' },
+        { src: 'plugin/d3js/d3js.js' }
+      ]
+    });
+  </script>
+</body>
+
+</html>
