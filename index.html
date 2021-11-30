@@ -685,8 +685,8 @@
             }
         
             ops => {
-              val fn: Fix[TreeF[A, *]] => B => Tree[(A, B)] = cataTrace(byDepthF)
-              fn(tree)(f(zero))
+              val fn: Fix[OpsF[A, *]] => B => Ops[(A, B)] = cataTrace(byDepthF)
+              fn(ops)(f(zero))
             }
           }
         </code></pre>
@@ -730,8 +730,8 @@
             }
         
             ops => {
-              val fn: Fix[TreeF[A, *]] => B => Tree[(A, B)] = cataTrace(byDepthF)
-              fn(tree)(f(zero))
+              val fn: Fix[OpsF[A, *]] => B => Ops[(A, B)] = cataTrace(byDepthF)
+              fn(ops)(f(zero))
             }
           }
         </code></pre>
@@ -744,17 +744,17 @@
 
           // Para has the history of previous computation inputs, so a small change
           
-          def trace[A, B](f: (Fix[TreeF[A, *]], B) => B)(zero: B): Tree[A] => Tree[(A, B)] = {
-            val byDepthF: TreeF[A, (Fix[TreeF[A, *]], B => Tree[(A, B)])] => B => Tree[(A, B)] = {
+          def trace[A, B](f: (Fix[OpsF[A, *]], B) => B)(zero: B): Ops[A] => Ops[(A, B)] = {
+            val algebra: OpsF[A, (Fix[OpsF[A, *]], B => Ops[(A, B)])] => B => Ops[(A, B)] = {
               {
-                case NodeF((his1, fb1), (his2, fb2)) => b => Fix(NodeF(fb1(f(his1, b)), fb2(f(his2, b))))
-                case LeafF(n)                        => b => Fix(LeafF((n, b)))
+                case SumF((his1, fb1), (his2, fb2)) => b => Fix(SumF(fb1(f(his1, b)), fb2(f(his2, b))))
+                case LeafF(n)                       => b => Fix(LeafF((n, b)))
               }
             }
         
-            tree => {
-              val fn: Fix[TreeF[A, *]] => B => Tree[(A, B)] = paraTrace(byDepthF)
-              fn(tree)(f(tree, zero))
+            ops => {
+              val fn: Fix[OpsF[A, *]] => B => Ops[(A, B)] = paraTrace(byDepthF)
+              fn(tree)(f(ops, zero))
             }
           }
 
