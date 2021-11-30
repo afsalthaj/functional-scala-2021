@@ -545,11 +545,127 @@
             
         sealed trait OpsF[A, B]
 
-        case class Leaf[A, B](query: A) extends Ops[A, B]
-        case class SumF[A, B](left: B, right: B) extends Ops[A, B]
+        case class Leaf[A, B](query: A) extends OpsF[A, B]
+        case class SumF[A, B](left: B, right: B) extends OpsF[A, B]
 
         // Skipping other nodes intentionally 
+        // Also u need a bifunctor instance to be able to map both A and B
+        // of which mapping B is going to be used for playing with recursion scheme
         
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>Building blocks - Basics</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+            
+         type Ops[A] = Fix[Ops[A, *]]
+        
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>Building blocks - Basics</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+            
+         // cata: F[A] => A => Fix[F] => A
+         // para: (Fix[F], A)] => A)
+         // histo: F[Cofree[F, A]] => A
+        
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Building blocks - Basics</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+            
+         // cata: F[V, A] => A => Fix[F[V, *]] => A 
+         // para: (Fix[F[V, *]], A)] => A)         
+         // histo: F[V, Cofree[F[V, *], A]] => A    // unused for this talk
+        
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Building blocks - Basics</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+          def cata[B[_, _], V, A](fix: Fix[B[V, *]])(algebra: F[B[V, A] => A)(implicit B: BiFunctor[B]): A =
+            algebra(B.second(fix.unfix)(cata(_)(algebra)))
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>But.. Why?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+          Tracing was actually pushing some attributes down the children from parents.
+          It's top down logic
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>But.. Why?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+          Tracing is present bottom up too. But then you need to pass it down again to children again.
+          Leading us to the terminologies in Attribute Grammer
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>But.. Why?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+         def cata(algebra: Algebra[F, A]): Fix[F] => A = ???
+         // where, Algebra = F[A] => A
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>Attribute Grammer</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+          type Algebra[F[_], A]                            = F[A] => A
+          type AttAlgebra[F[_], Inhertied, Synthesized, A] = F[Inhertied => (Synthesized, A)]
+
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Oh, you mean folding to a function? </h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+          // Yes, but a bit of formalisation is essential here.
+          // So that all you need is a blind copy of certain methods in papers into Scala
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Let's make our cata specific to attribute grammers </h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+   
+        // Only for explanations
+        type TraceAlgebra[F[_], I, D] = F[I => D] => I => D
+        type Algebra[F[_], A]         = F[A]      => A
+
+        def cata[B[_, _], V, A](fix: Fix[B[V, *]])(algebra: Algebra[B[V, *], A])(implicit B: BiFunctor[B]): A =
+          algebra(B.second(fix.unfix)(cata(_)(algebra)))
+    
+        def cataTrace[B[_, _], V, I, D](fix: Fix[B[V, *]])(algebra: TraceAlgebra[B[V, *], I, D])(implicit B: BiFunctor[B]): (I => D) = { 
+          algebra(B.second(fix.unfix)(cataTrace(algebra)(B)(_)))
+        }
+
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Let's make our cata specific to attribute grammers </h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+   
+          def cataTrace[B[_, _], V, I, D](
+            algebra: TraceAlgebra[B[V, *], I, D]
+           )(implicit B: BiFunctor[B]): Fix[B[V, *]] => (I => D) = { 
+             fix => algebra(B.second(fix.unfix)(cataTrace(algebra)(B)(_)))
+          }
+
         </code></pre>
       </section>
 
