@@ -669,6 +669,98 @@
         </code></pre>
       </section>
 
+      <section data-transition="fade-in">
+        <h3>Let's define attribute grammer for OpsF and Ops once and for all </h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+
+          // See Ops[A] here is Fix[OpsF[A, *]]
+
+          def trace[A, B](f: B => B)(zero: B): Ops[A] => Ops[(A, B)] = {
+            val algebra: OpsF[A, B => Ops[(A, B)]] => B => Ops[(A, B)] = {
+              {
+                // fb1 and fb2 is B => Ops[(A, B)]
+                case SumF(fb1, fb2) => b => Fix(SumF(fb1(f(b)), fb2(f(b))))
+                case LeafF(n)       => b => Fix(LeafF((n, b)))
+              }
+            }
+        
+            ops => {
+              val fn: Fix[TreeF[A, *]] => B => Tree[(A, B)] = cataTrace(byDepthF)
+              fn(tree)(f(zero))
+            }
+          }
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>An example </h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+          val plan0 = 
+           Fix(SumF(Fix(LeafF("query1")), Fix(LeafF("query2"))))
+         
+          val plan =
+            Fix(SumF(plan0, Fix(LeafF("query3"))))
+
+          println(plan)
+          // Fix(NodeF(Fix(NodeF(Fix(LeafF((afsal,3))),Fix(LeafF((thaj,3))))),Fix(LeafF((thaj2,2)))))  
+          
+          def byDepth[A](plan: Ops[A]): Ops[(A, Int)] =
+            trace(_ + 1)(0)(plan)
+
+          byDepth(plan)  
+
+         // Fix(NodeF(Fix(NodeF(Fix(LeafF((query1, 3))),Fix(LeafF((query2, 3))))),Fix(LeafF((query3, 2)))))
+
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Well, why cata if we have para ! </h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+
+          // Para has the history of previous computation inputs, so a small change
+
+          def trace[A, B](f: B => B)(zero: B): Ops[A] => Ops[(A, B)] = {
+            val algebra: OpsF[A, B => Ops[(A, B)]] => B => Ops[(A, B)] = {
+              {
+                // fb1 and fb2 is B => Ops[(A, B)]
+                case SumF(fb1, fb2) => b => Fix(SumF(fb1(f(b)), fb2(f(b))))
+                case LeafF(n)       => b => Fix(LeafF((n, b)))
+              }
+            }
+        
+            ops => {
+              val fn: Fix[TreeF[A, *]] => B => Tree[(A, B)] = cataTrace(byDepthF)
+              fn(tree)(f(zero))
+            }
+          }
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>Well, why cata if we have para ! </h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+
+          // Para has the history of previous computation inputs, so a small change
+          
+          def trace[A, B](f: (Fix[TreeF[A, *]], B) => B)(zero: B): Tree[A] => Tree[(A, B)] = {
+            val byDepthF: TreeF[A, (Fix[TreeF[A, *]], B => Tree[(A, B)])] => B => Tree[(A, B)] = {
+              {
+                case NodeF((his1, fb1), (his2, fb2)) => b => Fix(NodeF(fb1(f(his1, b)), fb2(f(his2, b))))
+                case LeafF(n)                        => b => Fix(LeafF((n, b)))
+              }
+            }
+        
+            tree => {
+              val fn: Fix[TreeF[A, *]] => B => Tree[(A, B)] = paraTrace(byDepthF)
+              fn(tree)(f(tree, zero))
+            }
+          }
+
+        </code></pre>
+      </section>
+
     </div>
   </div>
 
