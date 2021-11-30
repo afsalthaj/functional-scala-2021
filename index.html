@@ -36,21 +36,21 @@
 	      </textarea>
       </section>
 
-      <section data-markdown>
-        <textarea data-template>
-            ## Build a basic analytics engine
-            ## Make it observable through Query Planner - A sneak peak into functional design.
-            ## Bring observability through tracing and execution summary 
-                - A quick idea of Attribute Grammer with Recursion schemes
-	      </textarea>
+
+      <section data-transition="fade-out">
+        <h3>What to expect in this talk? </h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+          Basic Functional Desgin
+          Attribute Grammer
+          Recursion Schemes
+        </code></pre>
       </section>
 
 
 
       <section data-transition="fade-out">
-        <h3>Make your platform transparent </h3>
+        <h3>Our usecase: An app to make platform transparent</h3>
         <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
-          
           Make your platform observable through metrics with a metrics UI
           There existed a service that runs in the backend to calculate these metrics
           Metrics existed in various shapes in different sources
@@ -76,8 +76,8 @@
         <h3>Metrics calculation</h3>
         <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
           
-        1. When you ask the service, can the service emit what it tries to do.
-        2. When it finishes computation, does it provide what it has actually done.
+        1. When you ask the service for a metric, can it emit a plan on what to execute?
+        2. Can it then emit a summary of the details of executed computation ? 
 
         </code></pre>
       </section>
@@ -200,7 +200,7 @@
       <section data-transition="fade-in">
         <h3>Execution Plan</h3>
         <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
-          sealed trait Ops[A]
+  sealed trait Ops[A]
 
   object Ops {
     final case class Noop[A](query: A) extends Ops[A]
@@ -225,26 +225,35 @@
 
       <section data-transition="fade-in">
         <h3>Execution Flow</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-20">
           def plan(request: Request[A]): Ops[Query[(String, A)]] = {
             request.metric match {
               case Metric.Within(metric, start, end) => 
-              val requested = request.window
-              val available = Window(start.toInstant(now).truncatedTo(ChronoUnit.MINUTES), end.toInstant(now).truncatedTo(ChronoUnit.MINUTES))
+                val requested = request.window
+                val available = Window(start.toInstant(now), end.toInstant(now))
 
               if (requested.isSubsetOf(available)) {
-                selectQuery(request.withMetric(metric)).map(_.withWindow(requested))
+                plan(request.withMetric(metric)).map(_.withWindow(requested))
               } else if (requested.isNotIn(available)) {
-                Ops.Fail(
-                  s"The metric (for requested window ${requested}) is not available in the data-source (flat-schema/aurora). Note: mode:default means last 6 hrs will be from aurora and rest from flat-schema. May be the reason for failure is, metric is not defined for either flat-schema or aurora. Change mode to none if metric is available only in 1 datasource"
-                )
+                Ops.Fail("The metric is not available in the data-source")
               } else {
-                Ops.Partial(
-                  selectQuery(request.withMetric(metric).withWindow(requested.intersect(available)))
-                )
+                Ops.Partial(plan(request.withMetric(metric).withWindow(requested.intersect(available))))
               }    
             }
           }
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Execution Flow</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-20">
+          
+          case MetricDsl.OrElse(m1, m2) =>
+            (plan(request.withMetric(m1)), plan(request.withMetric(m2))) match {
+              // Skipped a few others
+              case (Ops.Partial(query1, w1, _), Ops.Partial(query2, w2, _)) => Ops.Union(query1, w1, query2, w2)
+              case (ops1, ops2)                                             => Ops.OrElse(ops1, request.window, ops2, request.window)
+            }
         </code></pre>
       </section>
 
@@ -253,135 +262,81 @@
       <section data-transition="fade-out">
         <h3>Metric was Data, and ExecPlan is Data too</h3>
 
-        Hence Exec Plan can be documented too - Demo
+        Well that's your plan, which is Ops[Query[A]]
 
       </section>
 
-      <!-- Slide -->
-      <section data-transition="fade-out">
-        <h3>ExecPlan knows about</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim >
-          // Exec-Plan knows about  
-  
-          All data sources, when they are  queried at what time-slice
-          Logic of metric, and points of splitting, merging (example: 10M m1 is Sum(10 PT1M from FS))
-          Caching, query cache, insert into cache
-          Fall-back decisions (ex: if failed to hit flat-schema, getting from aurora)
-          Special cases (Example: Get an extra time window for continued-session metric)
-          Precise control of parallelism. Even at the logic of Metric.scala
-          TODO: And being able to inject perf at every single step in the execution
-          // All of it possible with a careful mix of `Ops.scala` and `Query.scala` with `Metric.scala`
-  
-          //
+      <section data-transition="fade-in">
+        <h3>Pretty Printing it is easy</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-20">
+          case MetricDsl.OrElse(m1, m2) =>
+            (plan(request.withMetric(m1)), plan(request.withMetric(m2))) match {
+              // Skipped a few others
+              case (Ops.Partial(query1, w1, _), Ops.Partial(query2, w2, _)) => Ops.Union(query1, w1, query2, w2)
+              case (ops1, ops2)                                             => Ops.OrElse(ops1, request.window, ops2, request.window)
+            }
         </code></pre>
       </section>
 
-
-      <!-- Slide -->
-      <section data-transition="fade-out">
-        <h3>ExecPlan is not a fancy addition</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim >
-
-        1. Debugging
-        2. Comparing releases of Metric-Service 
-        // **Most of the time** avoiding spending time on perf.scala 
-        // comparison if exec plan is unchanged between releases (i.e, Not
-        // just comparing sql queries - but the entire flow of program)
-        3. Better visibility around how to improve performance (avoid smashing flatschema by sequencing num and den
-        in ratio metric)
-        
-        // Ofcourse, a very interesting piece to just play with!!
-
-      </code></pre>
-
-      </section>
-
-      <!-- Slide -->
-      <section data-transition="fade-out">
-        <h3>A glance at Ops.scala</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
-          sealed trait Ops[A]
-
-          case class Sum(list: List[Ops[A]]) extends Ops[A]
-          case class Ratio(x: Ops[A], b: Ops[A]) extends Ops[A]
-          case class OrElse(x: Ops[A], b: Ops[A]) extends Ops[A]
-        
-
-        </code></pre>
-      </section>
-
-      <!-- Slide -->
-      <section data-transition="fade-out">
-        <h3>A glance at Query.scala</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
-              sealed trait Query[A]
+      <section data-transition="fade-in">
+        <h3>Pretty Printing it is easy</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-20">
+        def toJson(f: B => Json): Json =
+          plan match {
+            case Ops.Noop(query) =>
+              f(query)
     
-              case class FlatSchemaRequest(request: Request[A]) extends Query[A]
-              case class CacheQuery[A](cacheKey: CacheKey) extends Query[A]
-
-              sealed trait SqlQuery[A] extends Query[A]
-              object SqlQuery {
-                case class Select(tableName: String, expr: Expr[A]) extends SqlQuery[A]
-                ...
-              }
-              
-            
+            case Ops.Partial(ops, _, _) =>
+              Json.Obj(Chunk(("partial", ops.toJson(f))))
     
-            </code></pre>
-      </section>
-
-      <!-- Slide -->
-      <section data-transition="fade-out">
-        <h3>ExecPlan</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
-          def default(request: SpotlightRequest[A]): Ops[Query[(String, A)]] = 
-            request.metric match ....   
+            case Ops.Fail(err) =>
+              Json.Obj(Chunk(("fail", Json.Str(err))))
+    
+            case Ops.Sum(chunk, _) =>
+              Json.Obj(Chunk(("sum", Json.Arr(chunk.map(_.toJson(f))))))
+    
+            ....
+    
         </code></pre>
       </section>
 
 
-      <!-- Slide -->
-      <section data-transition="fade-out">
-        <h3>Optimisers, slices, merging, splitting etc etc</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
-
-        // That's nothing but a function
-
-        case class Optimiser[A](exec: (SpotlightRequest[A], Ops[Query[A]]) => Ops[Query[A]])
-        // Demo, README
+      <section data-transition="fade-in">
+        <h3>Execution Plan: Ops[Query[A]]</h3>
+        <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+      "union": [
+        {"fall-back": [
+          "request-cache-metric-name-for-time-2021-09-16T08:27:28Z-and-2021-09-1608:31:00Z",
+          "request-database-SELECT value, COUNT(DISTINCT(abc.def)) FROM my_Table where time > '2021-09-16T08:27:28Z' AND time < '2021-09-16T08:29:00Z "
+          ]
+        },
+        {"fall-back": [
+          "request-cache-AWSS3(my_metric_name)",
+            { "sum": [
+                "request-aws-s3:Request(2021,9,16,8,Some(30),List(my_metric_name),location)",
+                "request-aws-s3:Request(2021,9,16,8,Some(31),List(my_metric_name),location)"
+              ]
+            }
+          ]
+        }
+      ]
         </code></pre>
       </section>
 
-
-      <section data-transition="fade-out">
-        <h3>A summary of optimiser</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
-          Ops.Sum[Query[Double]]  ==> Ops.Noop[Query[Double]]
-          // This is when we merge multiple queries to form almost a single query using inner joins, and calculate the metric.
-          // i.e Ops.Sum[Query[Double]] can be converted to Ops.Noop[Query[Double]] (<=> Query[Double])
- 
-          Ops.Noop[Query[Double]] ==> Ops.Sum[Query[Double]
-         // Query[Double] can be splitted based on time window to form a List[Query[Double]] and then use Ops.Sum.
-         // i.e, Query.Noop[Query[Double]]is converted to Ops.Sum[Query[Double]]
-          </code></pre>
+      <!-- Slide -->
+      <section data-transition="fade-in">
+        <h3>Request a plan, not just the feature/metric</h3>
+        <img src="images/query_plan.png" style="border: none;" width=800>
       </section>
 
-      <section data-transition="fade-out">
-        <h3>Visibility on optimisers</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
-           // Output of optimiser is ExecPlan[A] itself, and it can be documented too
-           // Optimisers naturally handles monoidal and non monoidal metrics. Example how to optimise a ratio metric? (See optimisers.scala)
-          </code></pre>
-      </section>
+      <section data-transition="fade-in">
+        <h3>Implementation</h3>
+        <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+    
+          val f: Query[(String, A)] => ZStream[Any, Error, A] = ???
+          // val impl: Query[A] => A
 
-      <section data-transition="fade-out">
-        <h3>(Why)Wheels package and Typesafety</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
-           // Talking to database was done using two typeclasses, Primitive and Composite. Typesafe. Ask for Double, and get a real Double
-           // No library dependencies - No doobie, ConnectionIO etc yet
-           // Streaming currently done using simple LazyList, opportunity to do better effectful streams
-           // Basic concurrency is set using `ZIO`
-          </code></pre>
+        </code></pre>
       </section>
 
     </div>
