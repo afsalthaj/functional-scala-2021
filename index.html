@@ -431,9 +431,9 @@
         <h3>Let's don't pollute our implementation at all</h3>
         <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
             Let's jump into recursion scheme here.
-            This is not going to be introduction to recursion scheme.
+            This is not going to be introduction to recursion scheme, but we will refresh.
             For those who are not familiar, I hope its a new thing to learn for you.
-            For those who are already familiar, I hope you are learning new with recursion scheme as well.
+            For those who are already familiar, I still hope there will be something new for you here.
         </code></pre>
       </section>
 
@@ -442,6 +442,114 @@
         <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
            fix point of cosine is x if cos(x) = x
 
+           If we continuously do cosine of 0 and keep on applying cosine over the result, 
+           we end up in a number finally that gets fixed forever. The number is 0.73908513321516067.
+
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Basics</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+          
+          val factorial: Int => Int =
+            n => if (n == 0) 1 else n * factorial(n - 1)
+
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>Basics</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+          
+          def factorial(f: Int => Int): Int => Int =
+            n => if (n == 0) 1 else n * f(n - 1)
+
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Basics</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+          
+          def almostFactorial(f: Int => Int): Int => Int =
+            n => if (n == 0) 1 else n * f(n - 1)
+
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Basics</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+
+          val factorial: Int => Int =
+            almostFactorial(almostFactorial(almostFactorial(.....)))
+
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Basics</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+
+           factorial = almostFactorial(factorial)
+           x         = cos(x)
+
+           fix point of cos             is x
+           fix point of almostFactorial is factorial 
+
+           factorial is fix-point of almostFactorial
+        
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>Basics</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+
+        // fix of almostFactorial = almostFactorial(almostFactoria(...))
+        def fix(fn: Fn) = Fn(fix(fn)) 
+        
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>Building blocks - Basics</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+            
+        final case class class Fix[F[_]](unfix: Fix[F])
+        
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Building blocks - Basics</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+            
+        sealed trait Ops[A]
+
+        case class Noop[A](query: A) extends Ops[A]
+        case class Sum[A](left: Ops[A], right: Ops[A]) extends Ops[A]
+        case class OrElse[A](left: Ops[A], right: Ops[A]) extends Ops[A]
+        
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>Building blocks - Basics</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+            
+        sealed trait OpsF[A, B]
+
+        case class Leaf[A, B](query: A) extends Ops[A, B]
+        case class SumF[A, B](left: B, right: B) extends Ops[A, B]
+
+        // Skipping other nodes intentionally 
+        
         </code></pre>
       </section>
 
