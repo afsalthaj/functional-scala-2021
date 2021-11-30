@@ -331,10 +331,116 @@
 
       <section data-transition="fade-in">
         <h3>Implementation</h3>
-        <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-    
-          val f: Query[(String, A)] => ZStream[Any, Error, A] = ???
-          // val impl: Query[A] => A
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+              
+          type QueryImpl: Query[A] => ZStream[Any, Error, A]
+
+          def compile(plan: Ops[Query[A]], f: QueryImpl) = 
+            plan match {
+              case Leaf(a)          => 
+                f(a)
+              case Sum(left, right) => 
+                compile(left).plus(compile(right), ExecutionStrategy.Parallel)
+              case OrElse(left, right) => 
+                compile(left).orElse(compile(right))   
+            }
+
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>Execution Trace</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+            Push the pathways as a list of `Ops[_]` into the Leaf node.
+            
+            i.e, change `Ops[A]` to `Ops[(List[Ops[_]], A)]`
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Solution</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+              
+          type Trace = List[Ops[_]]
+
+          type QueryImpl: (Query[A], List[Ops[_]]) => ZStream[Any, Error, A]
+
+          def compile(plan: Ops[Query[A]], f: QueryImpl, trace: Trace) = 
+            plan match {
+              case Leaf(a)          => 
+                f(a)
+              case a @ Sum(left, right) => 
+                compile(left, a :: trace).plus(compile(right, a :: trace), ExecutionStrategy.Parallel)
+              case a @ OrElse(left, right) => 
+                compile(left, a :: trace).orElse(compile(right, a :: trace))   
+            }
+
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Well I need a depth of each leaf as well?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+            
+           type QueryImpl: (Query[A], List[Ops[_]], Int) => ZStream[Any, Error, A]
+
+           def compile(plan: Ops[Query[A]], f: QueryImpl, trace: Trace, depth: Int) = ??? 
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Well I need to compute the result of each subcomputation</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+            
+           Is that top-down or bottom up logic ??
+
+           def compile(
+             plan: Ops[Query[A]], 
+             f: QueryImpl, 
+             trace: Trace, 
+             depth: Int, 
+             subComputation: Map[Ops[_], ZStream[..]]
+          ) = ??? 
+
+          How can I map the `Map` back to the original plan?
+
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Let's bring in performance at each node as well</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+           type Performance = Long
+
+           def compile(
+             plan: Ops[Query[A]], 
+             f: QueryImpl, 
+             trace: Trace, // Top-Down
+             depth: Int,   // Top-Down
+             subComputation: Map[Ops[_], ZStream[..]], // Maybe-bottom-up
+             subComputation: Map[Ops[_], Long] // Bottom-up?
+          ) = ??? 
+
+          How can I map the two `Map`s back to the original plan?
+
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Let's don't pollute our implementation at all</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+            Let's jump into recursion scheme here.
+            This is not going to be introduction to recursion scheme.
+            For those who are not familiar, I hope its a new thing to learn for you.
+            For those who are already familiar, I hope you are learning new with recursion scheme as well.
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Building blocks</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+           fix point of cosine is x if cos(x) = x
 
         </code></pre>
       </section>
