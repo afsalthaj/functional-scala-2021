@@ -761,6 +761,167 @@
         </code></pre>
       </section>
 
+
+      <section data-transition="fade-in">
+        <h3>Well, why cata if we have para ! </h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+
+        type Trace[A] = List[Fix[OpsF[A, *]]]
+
+        def byDepth[A](ops: Ops[A]): Ops[(A, Int)] =
+          trace((_, depth) => depth + 1)(0)(ops)
+  
+        def byPath[A](ops: Ops[A]): Ops[(A, Trace[A])] =
+          trace[A, Trace[A]](_ :: _)(Nil)(ops)
+
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>And we can compose independently</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+
+          type Ops[A] = Fix[OpsF[A, *]]
+
+          val ops0: Ops[Int] =
+            ratio(leaf(20), leaf(30)))
+
+          val ops: Ops[Int] =
+            sum(ops0, leaf(10))
+
+          println(byDepth(ops))
+          println(byTrace(ops))
+          println(byDepth(byTrace(ops)))
+
+
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>And it composes quite nicely</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+
+          type Ops[A] = Fix[OpsF[A, *]]
+          val ops: Ops[Query[Double]] = ???
+
+          println(ops)
+          println(byDepth(ops))
+          println(byTrace(ops))
+          println(byDepth(byTrace(ops)))
+
+
+        </code></pre>
+      </section>
+
+
+
+      <section data-transition="fade-in">
+        <h3>And it composes quite nicely</h3>
+        <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+
+          {
+            "sum": [
+              {
+                "ratio": [
+                  20,
+                  30
+                ]
+              },
+              10
+            ]
+          }
+
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>And it composes quite nicely</h3>
+        <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+
+          {
+            "sum": [
+              {
+                "ratio": [
+                  {
+                    "value": 20,
+                    "depth": 3,
+                    "trace": [
+                      {"value": 20},
+                      {"ratio": [{"value": 20},{ "value": 30 }]},
+                      {"sum": [{"ratio": [{"value": 20},{"value": 30}]},{ "value": 10 }]}
+                    ]
+                  },
+                  {
+                    "value": 30,
+                    "depth": 3,
+                    "trace": [
+                      {
+                        "value": 30
+                      },
+                      {
+                        "ratio": [
+                          {
+                            "value": 20
+                          },
+                          {
+                            "value": 30
+                          }
+                        ]
+                      },
+                      {
+                        "sum": [
+                          {
+                            "ratio": [
+                              {
+                                "value": 20
+                              },
+                              {
+                                "value": 30
+                              }
+                            ]
+                          },
+                          {
+                            "value": 10
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "value": 10,
+                "depth": 2,
+                "trace": [
+                  {"value": 10},
+                  {"sum": [
+                      {
+                        "ratio": [
+                          {
+                            "value": 20
+                          },
+                          {
+                            "value": 30
+                          }
+                        ]
+                      },
+                      {
+                        "value": 10
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+
+        </code></pre>
+      </section>
+
+
+
+
     </div>
   </div>
 
