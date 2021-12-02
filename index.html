@@ -112,15 +112,17 @@
       </section>
 
       <section data-transition="fade-out">
-        <h3>Our usecase, history</h3>
-        <pre><code class="hljs json" style="font-size:24px;" data-trim data-trim>
-          Calculating metrics, is similar to calculating a customer attribute (feature)
+        <h3>Metrics === Customer Attributes === Anything</h3>
 
-        </code></pre>
+        <p style="font-size:35px;"> Calculating metrics, is similar to calculating a customer attribute (feature) for
+          instance.</p>
+
+
+
       </section>
 
       <section data-transition="fade-out">
-        <h3>Metrics calculation</h3>
+        <h3>Specific problems</h3>
         <pre><code class="hljs json" style="font-size:25px;" data-trim data-trim>
           
         Data for a feature/metric can exist in multiple sources,
@@ -141,7 +143,7 @@
 
 
       <section data-transition="fade-out">
-        <h3>Analytics Engine</h3>
+        <h3>That's a common problem indeed</h3>
         <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
           
         Infact, we started with a specific problem but essentially
@@ -152,11 +154,15 @@
 
       <!-- Slide 2 -->
       <section data-transition="fade-out">
-        <h3>How to solve?</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+        <h3>How to solve all of these?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;">
           
-        An execution planner
-        An execution summary
+        - An execution plan
+        - An execution summary
+
+        where an , execution summary == execution planner + extra details.
+
+        The generic shape of plan and summary are the same - sort of!
 
         </code></pre>
       </section>
@@ -164,15 +170,14 @@
       <!-- Slide 2 -->
       <section data-transition="fade-out">
         <h3>How to solve?</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
-         // In our case we need to be able to define a metric
+        <pre><code class="hljs scala" style="font-size:20px;" data-trim data-trim>
          sealed trait Metric[A]
 
          object Metric {
-          case class Source[A](dataSource: DataSource[A])                     extends Metric[A] 
-          case class Ratio[A](numerator: Metric[A], denominator: Metric[A])   extends Metric[A]
-          case class Sum[A](left: Metric[A], right: Metric[A])                extends Metric[A]
-          case class OrElse[A](left: MetricDsl[A], right: MetricDsl[A])       extends MetricDsl[A]
+          case class Source[A](dataSource: DataSource[A])                                 extends Metric[A] 
+          case class Ratio[A](numerator: Metric[A], denominator: Metric[A])               extends Metric[A]
+          case class Sum[A](left: Metric[A], right: Metric[A])                            extends Metric[A]
+          case class OrElse[A](left: Metric[A], right: Metric[A])                         extends Metric[A]
           case class Within[A](metric: Metric[A], start: RelativeTime, end: RelativeTime) extends Metric[A]
          }
       
@@ -180,15 +185,14 @@
       </section>
 
       <section data-transition="fade-in">
-        <h3>DataSource</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+        <h3>Relative Time</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
      sealed trait RelativeTime
        
      object RelativeTime {
        final case object Now                          extends RelativeTime
        final case object Epoch                        extends RelativeTime
        final case class BeforeNow(duration: Duration) extends RelativeTime
-       final case class At(instant: Instant)          extends RelativeTime
      }
 
         </code></pre>
@@ -199,7 +203,7 @@
 
       <section data-transition="fade-in">
         <h3>DataSource</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
           sealed trait DataSource[A] 
 
           object DataSource {
@@ -212,11 +216,61 @@
         </code></pre>
       </section>
 
+      <section data-transition="fade-in">
+        <h3>Add a new metric/feature in code</h3>
+        <pre><code class="hljs scala" style="font-size:26px;" data-trim>
+         
+          def fromPostgres[A](expr: Expr[A]) = 
+            Source(DataSource.aurora(expr)))
+
+          def fromS3(metricName: String) = 
+            Source(DataSource.awsS3(metricName))
+
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>Add a new metric/feature in code</h3>
+        <pre><code class="hljs scala" style="font-size:24px;" data-trim="">
+         
+          val myNewMetric = 
+            fromPostgres(sum(int("time_taken")).from(table"x"))
+             .within(now, beforNow(6.hours))
+             .orElse(fromS3("total_time_taken")
+             .within(epoch, beforeNow(6.hours)))
+
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>Add a new metric/feature in code</h3>
+        <pre><code class="hljs scala" style="font-size:24px;" data-trim data-trim>
+          // And internally
+
+          val updatedMetric = 
+            Source(InMemoryCache()).orElse(myNewMetric)
+
+         // All of these are just data   
+
+        </code></pre>
+      </section>
+
       <!-- Slide 4 -->
 
       <section data-transition="fade-in">
+        <h3>Ok, what's the end to end flow?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
+          Request[A] => Metric[A]
+          Metric[A]  => ZStream[Any, Error, A]  ???
+          
+          Hmmm..not really, coz there are more abstractions in place
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
         <h3>Query</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
           // We need to represent the operations done at each datasource level
           sealed trait Query[A]
 
@@ -224,11 +278,7 @@
             final case class FromCache[A](input: DataSource[_], window: Window) extends Query[A]
             final case class FromS3[A](request: S3.Request) extends Query[A]
             sealed trait SqlQuery[A] extends Query[A]
-            object SqlQuery {
-              ....
-
-            }
-
+            object SqlQuery {}
           }
 
         </code></pre>
@@ -237,54 +287,64 @@
       <!-- Slide 5-->
       <section data-transition="fade-in">
         <h3>Sql Query</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
-          final case class Select[A](expr: Expr[A]) extends SqlQuery[A]
-          final case class From[A](q1: SqlQuery[A], q2: SqlQuery[A]) extends SqlQuery[A]
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim>
+          final case class Select[A](expr: Expr[A])                           extends SqlQuery[A]
+          final case class From[A](q1: SqlQuery[A], q2: SqlQuery[A])          extends SqlQuery[A]
           final case class Filter[A](query: SqlQuery[A], expr: Expr[Boolean]) extends SqlQuery[A]
-          final case class GroupBy[A, B](query: SqlQuery[A], expr: Expr[B]) extends SqlQuery[A] 
-          final case class InnerJoin[A, B](q1: SqlQuery[A], q2: SqlQuery[B], onLeft: String, onRight: String) extends SqlQuery[A]
+          final case class GroupBy[A, B](query: SqlQuery[A], expr: Expr[B])   extends SqlQuery[A] 
+          final case class InnerJoin[A, B](q1: SqlQuery[A], q2: SqlQuery[B])  extends SqlQuery[A]
+
+          // Skipped some details
         </code></pre>
       </section>
 
       <!-- Slide 5-->
+
       <section data-transition="fade-in">
-        <h3>Execution Plan</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
-           An abstraction that is closer to the implementation
-           That's called Ops
+        <h3>Ok, what's the end to end flow now?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
+          Request[A] => Metric[A]
+          Metric[A]  => Query[A] 
+          Query[A]   => ZStream[Any, Error, A] ???
+
+          Hmmm..not really, coz there is 1 more abstraction in place
         </code></pre>
       </section>
 
       <section data-transition="fade-in">
         <h3>Execution Plan</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
+        <pre><code class="hljs scala" style="font-size:20px;" data-trim data-trim >
   sealed trait Ops[A]
 
   object Ops {
-    final case class Noop[A](query: A) extends Ops[A]
-    final case class Partial[A](ops: Ops[A], forWindow: Window, remainingWindow: Window) extends Ops[A]
-    final case class Union[A](left: Ops[A], leftWindow: Window, right: Ops[A], rightWindow: Window) extends Ops[A]
-    final case class Fail[A](message: String) extends Ops[A]
-    final case class Sum[A](nonEmptyChunk: NonEmptyChunk[Ops[C, A]], executionStrategy: Option[ExecutionStrategy] = None) extends Ops[A]
-    final case class OrElse[A](self: Ops[C, A], leftWindow: Window, that: Ops[C, A], rightWindow: Window) extends Ops[A]
+    final case class Noop[A](query: A)                                               extends Ops[A]
+    final case class Sum[A](opss: NonEmptyChunk[Ops[C, A]], exec: ExecutionStrategy) extends Ops[A]
+    final case class Partial[A](ops: Ops[A)                                          extends Ops[A]
+    final case class Union[A](left: Ops[A], right: Ops[A])                           extends Ops[A]
+    final case class Fail[A](message: String)                                        extends Ops[A]
+    final case class OrElse[A](self: Ops[C, A], that: Ops[C, A])                     extends Ops[A]
   }
 
         </code></pre>
       </section>
 
+
       <section data-transition="fade-in">
-        <h3>Program Flow</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-10">
-          Request                 => Ops[Query[(String, A)]]
-          Ops[Query[(String, A)]] => Ops[ZStream[Any, Error, (String, A)]]
-          Ops[ZStream[Any, Error, (String, A)]] => ZStream[Any, Error, (String, A)]
+        <h3>Ok, What's the flow now please?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
+          Request[A]                  => Metric[A]
+          Metric[A]                   => Ops[Query[A]] 
+          Ops[Query[A]]               => Ops[ZStream[Any, Error, A]]
+          Ops[ZStream[Any, Error, A]] => ZStream[Any, Error, A]
+
+          Woo, finally!
         </code></pre>
       </section>
 
       <section data-transition="fade-in">
-        <h3>Execution Flow</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-20">
-          def plan(request: Request[A]): Ops[Query[(String, A)]] = {
+        <h3>How to form the plan?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1">
+          def plan(request: Request[A]): Ops[Query[A]] = {
             request.metric match {
               case Metric.Within(metric, start, end) => 
                 val requested = request.window
@@ -303,9 +363,94 @@
       </section>
 
       <section data-transition="fade-in">
-        <h3>Execution Flow</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-20">
-          
+        <h3>How to form the plan?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="2-5">
+          def plan(request: Request[A]): Ops[Query[A]] = {
+            request.metric match {
+              case Metric.Within(metric, start, end) => 
+                val requested = request.window
+                val available = Window(start.toInstant(now), end.toInstant(now))
+
+              if (requested.isSubsetOf(available)) {
+                plan(request.withMetric(metric)).map(_.withWindow(requested))
+              } else if (requested.isNotIn(available)) {
+                Ops.Fail("The metric is not available in the data-source")
+              } else {
+                Ops.Partial(plan(request.withMetric(metric).withWindow(requested.intersect(available))))
+              }    
+            }
+          }
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>How to form the plan?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="6-8">
+          def plan(request: Request[A]): Ops[Query[A]] = {
+            request.metric match {
+              case Metric.Within(metric, start, end) => 
+                val requested = request.window
+                val available = Window(start.toInstant(now), end.toInstant(now))
+
+              if (requested.isSubsetOf(available)) {
+                plan(request.withMetric(metric)).map(_.withWindow(requested))
+              } else if (requested.isNotIn(available)) {
+                Ops.Fail("The metric is not available in the data-source")
+              } else {
+                Ops.Partial(plan(request.withMetric(metric).withWindow(requested.intersect(available))))
+              }    
+            }
+          }
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>How to form the plan?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="9-10">
+          def plan(request: Request[A]): Ops[Query[A]] = {
+            request.metric match {
+              case Metric.Within(metric, start, end) => 
+                val requested = request.window
+                val available = Window(start.toInstant(now), end.toInstant(now))
+
+              if (requested.isSubsetOf(available)) {
+                plan(request.withMetric(metric)).map(_.withWindow(requested))
+              } else if (requested.isNotIn(available)) {
+                Ops.Fail("The metric is not available in the data-source")
+              } else {
+                Ops.Partial(plan(request.withMetric(metric).withWindow(requested.intersect(available))))
+              }    
+            }
+          }
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>How to form the plan? An example</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="11-14">
+          def plan(request: Request[A]): Ops[Query[A]] = {
+            request.metric match {
+              case Metric.Within(metric, start, end) => 
+                val requested = request.window
+                val available = Window(start.toInstant(now), end.toInstant(now))
+
+              if (requested.isSubsetOf(available)) {
+                plan(request.withMetric(metric)).map(_.withWindow(requested))
+              } else if (requested.isNotIn(available)) {
+                Ops.Fail("The metric is not available in the data-source")
+              } else {
+                Ops.Partial(plan(request.withMetric(metric).withWindow(requested.intersect(available))))
+              }    
+            }
+          }
+        </code></pre>
+      </section>
+
+      <section data-transition="fade-in">
+        <h3>How to form the plan? An example</h3>
+        <pre><code class="hljs scala" style="font-size:20px;" data-trim data-trim>
+
           case MetricDsl.OrElse(m1, m2) =>
             (plan(request.withMetric(m1)), plan(request.withMetric(m2))) match {
               // Skipped a few others
@@ -320,29 +465,17 @@
       <section data-transition="fade-out">
         <h3>Metric was Data, and ExecPlan is Data too</h3>
 
-        Well that's your plan, which is Ops[Query[A]]
+        That was your execution plan, done!
 
       </section>
 
       <section data-transition="fade-in">
         <h3>Pretty Printing it is easy</h3>
         <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-20">
-          case MetricDsl.OrElse(m1, m2) =>
-            (plan(request.withMetric(m1)), plan(request.withMetric(m2))) match {
-              // Skipped a few others
-              case (Ops.Partial(query1, w1, _), Ops.Partial(query2, w2, _)) => Ops.Union(query1, w1, query2, w2)
-              case (ops1, ops2)                                             => Ops.OrElse(ops1, request.window, ops2, request.window)
-            }
-        </code></pre>
-      </section>
-
-      <section data-transition="fade-in">
-        <h3>Pretty Printing it is easy</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-20">
-        def toJson(f: B => Json): Json =
+        def toJson[A](f: A => Json, plan: Ops[A]): Json =
           plan match {
-            case Ops.Noop(query) =>
-              f(query)
+            case Ops.Noop(a) =>
+              f(a)
     
             case Ops.Partial(ops, _, _) =>
               Json.Obj(Chunk(("partial", ops.toJson(f))))
@@ -383,17 +516,17 @@
 
       <!-- Slide -->
       <section data-transition="fade-in">
-        <h3>Request a plan, not just the feature/metric</h3>
+        <h3>Request a plan - Transparency 101</h3>
         <img src="images/query_plan.png" style="border: none;" width=800>
       </section>
 
       <section data-transition="fade-in">
-        <h3>Implementation</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <h3>Convert the plan to something real ?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
               
           type QueryImpl: Query[A] => ZStream[Any, Error, A]
 
-          def compile(plan: Ops[Query[A]], f: QueryImpl) = 
+          def compile(plan: Ops[Query[A]], f: QueryImpl): ZStream[Any, Error, A] = 
             plan match {
               case Leaf(a)          => 
                 f(a)
