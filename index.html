@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="css/theme/moon.css">
 
   <!-- Theme used for syntax highlighting of code -->
-  <link rel="stylesheet" href="lib/css/atom-one-dark.css">
+  <link rel="stylesheet" href="lib/css/monokai-sublime.css">
 
 
   <!-- Printing and PDF exports -->
@@ -624,8 +624,11 @@
       <section data-transition="fade-in">
         <h3>Attribute Grammer</h3>
         <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-          type Algebra[F[_], A]                            = F[A] => A
-          type AttAlgebra[F[_], Inhertied, Synthesized, A] = F[Inhertied => (Synthesized, A)]
+          type Algebra[F[_], A]                            = 
+            F[A] => A
+
+          type AttAlgebra[F[_], I, S, A] = 
+            F[I => (S, A)] => I => (S, A)
 
         </code></pre>
       </section>
@@ -684,10 +687,7 @@
               }
             }
         
-            ops => {
-              val fn: Fix[OpsF[A, *]] => B => Ops[(A, B)] = cataTrace(byDepthF)
-              fn(ops)(f(zero))
-            }
+            ops =>  cataTrace(byDepthF)(ops)(f(zero))
           }
         </code></pre>
       </section>
@@ -704,10 +704,10 @@
           println(plan)
           // Fix(NodeF(Fix(NodeF(Fix(LeafF((afsal,3))),Fix(LeafF((thaj,3))))),Fix(LeafF((thaj2,2)))))  
           
-          def byDepth[A](plan: Ops[A]): Ops[(A, Int)] =
+          def withDepth[A](plan: Ops[A]): Ops[(A, Int)] =
             trace(_ + 1)(0)(plan)
 
-          byDepth(plan)  
+          withDepth(plan)  
 
          // Fix(NodeF(Fix(NodeF(Fix(LeafF((query1, 3))),Fix(LeafF((query2, 3))))),Fix(LeafF((query3, 2)))))
 
@@ -715,7 +715,7 @@
       </section>
 
       <section data-transition="fade-in">
-        <h3>Well, why cata if we have para ! </h3>
+        <h3>Why not Para </h3>
         <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
 
           // Para has the history of previous computation inputs, so a small change
@@ -729,10 +729,7 @@
               }
             }
         
-            ops => {
-              val fn: Fix[OpsF[A, *]] => B => Ops[(A, B)] = cataTrace(byDepthF)
-              fn(ops)(f(zero))
-            }
+            ops => cataTrace(byDepthF)(ops)(f(zero))
           }
         </code></pre>
       </section>
@@ -752,9 +749,7 @@
               }
             }
         
-            ops => {
-              val fn: Fix[OpsF[A, *]] => B => Ops[(A, B)] = paraTrace(byDepthF)
-              fn(tree)(f(ops, zero))
+              ops => paraTrace(byDepthF)(ops)(f(ops, zero))
             }
           }
 
@@ -763,15 +758,15 @@
 
 
       <section data-transition="fade-in">
-        <h3>Well, why cata if we have para ! </h3>
+        <h3>Tracing done </h3>
         <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
 
         type Trace[A] = List[Fix[OpsF[A, *]]]
 
-        def byDepth[A](ops: Ops[A]): Ops[(A, Int)] =
+        def withDepth[A](ops: Ops[A]): Ops[(A, Int)] =
           trace((_, depth) => depth + 1)(0)(ops)
   
-        def byPath[A](ops: Ops[A]): Ops[(A, Trace[A])] =
+        def withTrace[A](ops: Ops[A]): Ops[(A, Trace[A])] =
           trace[A, Trace[A]](_ :: _)(Nil)(ops)
 
         </code></pre>
@@ -789,35 +784,16 @@
           val ops: Ops[Int] =
             sum(ops0, leaf(10))
 
-          println(byDepth(ops))
-          println(byTrace(ops))
-          println(byDepth(byTrace(ops)))
+          println(withDepth(ops))
+          println(withTrace(ops))
+          println(withDepth(withTrace(ops)))
 
 
         </code></pre>
       </section>
 
-
       <section data-transition="fade-in">
-        <h3>And it composes quite nicely</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-
-          type Ops[A] = Fix[OpsF[A, *]]
-          val ops: Ops[Query[Double]] = ???
-
-          println(ops)
-          println(byDepth(ops))
-          println(byTrace(ops))
-          println(byDepth(byTrace(ops)))
-
-
-        </code></pre>
-      </section>
-
-
-
-      <section data-transition="fade-in">
-        <h3>And it composes quite nicely</h3>
+        <h3>Program without attributes</h3>
         <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
 
           {
@@ -836,9 +812,8 @@
       </section>
 
       <section data-transition="fade-in">
-        <h3>And it composes quite nicely</h3>
+        <h3>Program with all the attributes</h3>
         <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-
           {
             "sum": [
               {
@@ -856,36 +831,9 @@
                     "value": 30,
                     "depth": 3,
                     "trace": [
-                      {
-                        "value": 30
-                      },
-                      {
-                        "ratio": [
-                          {
-                            "value": 20
-                          },
-                          {
-                            "value": 30
-                          }
-                        ]
-                      },
-                      {
-                        "sum": [
-                          {
-                            "ratio": [
-                              {
-                                "value": 20
-                              },
-                              {
-                                "value": 30
-                              }
-                            ]
-                          },
-                          {
-                            "value": 10
-                          }
-                        ]
-                      }
+                      {"value": 30},
+                      {"ratio": [{"value": 20},{"value": 30}]},
+                      {"sum": [{"ratio": [{"value": 20},{"value": 30}]},{"value": 10}]}
                     ]
                   }
                 ]
@@ -895,22 +843,7 @@
                 "depth": 2,
                 "trace": [
                   {"value": 10},
-                  {"sum": [
-                      {
-                        "ratio": [
-                          {
-                            "value": 20
-                          },
-                          {
-                            "value": 30
-                          }
-                        ]
-                      },
-                      {
-                        "value": 10
-                      }
-                    ]
-                  }
+                  {"sum": [{"ratio": [{"value": 20},{"value": 30}]},{"value": 10}]}
                 ]
               }
             ]
@@ -920,7 +853,120 @@
       </section>
 
 
+      <section data-transition="fade-in">
+        <h3>Track SubComputation Results</h3>
+        <pre><code class="hljs scala" style="font-size:22px;">
 
+         final case class Fix[F[_]](unfix: F[Fix[F]])
+
+
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>Track SubComputation Results</h3>
+        <pre><code class="hljs scala" style="font-size:22px;">
+
+         // For each F, annotate it with results
+         final case class Fix[F[_]](unfix: F[Fix[F]])
+
+         
+        </code></pre>
+      </section>
+
+
+
+      <section data-transition="fade-in">
+        <h3>Track SubComputation Results - Progress Results </h3>
+        <pre><code class="hljs scala" style="font-size:22px;">
+         // For eac OpsF, annotate it with the result, 
+         // discussed annotations using Compose in various blogs/papers
+         final case class Compose[F[_], G[_], A](value: F[G[A]]])
+         final case class Fix[F[_]](unfix: F[Fix[F]])
+
+         type Ops[A]                = Fix[OpsF[A, *]]
+         type AnnotatedResult[A, R] = Fix[Compose[(R, *), OpsF[A, *], *]]   
+        </code></pre>
+      </section>
+
+
+
+      <section data-transition="fade-in">
+        <h3>Track SubComputation Results</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+
+         // Let's replace Compose with Cofree
+         final case class Cofree[F[_], R](result: R, value: F[Cofree[F]])
+         final case class Fix[F[_]](unfix: F[Fix[F]])
+
+         type AnnotatedResult[A, R] = Cofree[OpsF[A, *], R]]
+         
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>Strategy</h3>
+
+        <p style="font-size:22px">Let's have a version of cata that produces Cofree[F, A] instead of A</p>
+
+        <pre><code class="hljs scala" style="font-size:20px;">
+
+  def cata [F[_, _], V, A] (step: Algebra[F[V, *], A]): Fix[F[V, *]] => A
+
+  def cataCF[F[_, _], V, A](step: Algebra[F[V, *], A]): Fix[F[V, *]] => Cofree[F[V, *], A] = ???
+         
+         
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>Strategy</h3>
+
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
+
+          def cataCF[F[_, _], V, A](
+            step: Algebra[F[V, *], A]
+          )(implicit Bi: BiFunctor[F]): Fix[F[V, *]] => Cofree[F[V, *], A] = fix => {     
+            val algebra: F[V, Cofree[F[V, *], A]] => Cofree[F[V, *], A] =
+              fCofree => {
+                Cofree(step(Bi.second(fCofree)(_.value)), fCofree)
+              }
+        
+            cata(algebra)(fix)
+          }
+         
+         
+        </code></pre>
+      </section>
+
+
+      <section data-transition="fade-in">
+        <h3>Strategy</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+          def compile[A](f: Query[A] => OutputStream): Algebra[OpsF[Query[A], *], OutputStream] = ???
+
+          val simpleResult = 
+           cata(compile, plan)
+
+         // zio.stream.ZStream$$anon$1@3d74bf60             
+
+          val annotatedResult = 
+           cataCofree(compile, plan)
+           
+         // Cofree(
+         //   zio.stream.ZStream$$anon$1@3d74bf60,
+         //   Sum(
+         //     Cofree(zio.stream.ZStream$$anon$1@4f209819, Leaf(query1)),
+         //     Cofree(zio.stream.ZStream$$anon$1@15eb5ee5, Leaf(query2))
+         //   )
+         //)  
+  
+         
+        </code></pre>
+      </section>
 
     </div>
   </div>
