@@ -555,7 +555,9 @@
         <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
             
           When and why did it hit a datasource? 
-          Answer is a stack fo steps (List[Ops[_]]) that led to the leaf node of ops
+
+          Answer is make the stack fo steps (List[Ops[_]]) that led to the leaf node,
+          available in leaf node
             
           i.e, change `Ops[A]` to `Ops[(List[Ops[_]], A)]`
         </code></pre>
@@ -563,7 +565,7 @@
 
       <section data-transition="fade-in">
         <h3>Solution</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim >
               
           type Trace = List[Ops[_]]
 
@@ -584,7 +586,7 @@
 
       <section data-transition="fade-in">
         <h3>Well I need a depth of each leaf as well?</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim >
             
            type QueryImpl: (Query[A], List[Ops[_]], Int) => ZStream[Any, Error, A]
 
@@ -593,8 +595,8 @@
       </section>
 
       <section data-transition="fade-in">
-        <h3>Well I need to compute the result of each subcomputation</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <h3>Well I need to access the result of each subcomputation too?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
             
            Is that top-down or bottom up logic ??
 
@@ -606,14 +608,12 @@
              subComputation: Map[Ops[_], ZStream[..]]
           ) = ??? 
 
-          How can I map the `Map` back to the original plan?
-
         </code></pre>
       </section>
 
       <section data-transition="fade-in">
-        <h3>Let's bring in performance at each node as well</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <h3>And performance?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
            type Performance = Long
 
            def compile(
@@ -622,106 +622,28 @@
              trace: Trace, // Top-Down
              depth: Int,   // Top-Down
              subComputation: Map[Ops[_], ZStream[..]], // Maybe-bottom-up
-             subComputation: Map[Ops[_], Long] // Bottom-up?
+             execTimes: Map[Ops[_], Long] // Bottom-up?
           ) = ??? 
 
-          How can I map the two `Map`s back to the original plan?
+          How can I convert the all these `Map`s to "orginal plan with extra details" ?
 
         </code></pre>
       </section>
 
       <section data-transition="fade-in">
-        <h3>Let's don't pollute our implementation at all</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-            Let's jump into recursion scheme here.
-            This is not going to be introduction to recursion scheme, but we will refresh.
-            For those who are not familiar, I hope its a new thing to learn for you.
-            For those who are already familiar, I still hope there will be something new for you here.
-        </code></pre>
-      </section>
+        <h3>Let's dont pollute implementations</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
+          Let's dont pollute implementations
+          N, let's don't bring too many data-structures
 
-      <section data-transition="fade-in">
-        <h3>Building blocks</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-           fix point of cosine is x if cos(x) = x
-
-           If we continuously do cosine of 0 and keep on applying cosine over the result, 
-           we end up in a number finally that gets fixed forever. The number is 0.73908513321516067.
-
-        </code></pre>
-      </section>
-
-      <section data-transition="fade-in">
-        <h3>Basics</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-          
-          val factorial: Int => Int =
-            n => if (n == 0) 1 else n * factorial(n - 1)
-
-        </code></pre>
-      </section>
-
-
-      <section data-transition="fade-in">
-        <h3>Basics</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-          
-          def factorial(f: Int => Int): Int => Int =
-            n => if (n == 0) 1 else n * f(n - 1)
-
-        </code></pre>
-      </section>
-
-      <section data-transition="fade-in">
-        <h3>Basics</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-          
-          def almostFactorial(f: Int => Int): Int => Int =
-            n => if (n == 0) 1 else n * f(n - 1)
-
-        </code></pre>
-      </section>
-
-      <section data-transition="fade-in">
-        <h3>Basics</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-
-          val factorial: Int => Int =
-            almostFactorial(almostFactorial(almostFactorial(.....)))
-
-        </code></pre>
-      </section>
-
-      <section data-transition="fade-in">
-        <h3>Basics</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-
-           factorial = almostFactorial(factorial)
-           x         = cos(x)
-
-           fix point of cos             is x
-           fix point of almostFactorial is factorial 
-
-           factorial is fix-point of almostFactorial
-        
-        </code></pre>
-      </section>
-
-
-      <section data-transition="fade-in">
-        <h3>Basics</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-
-        // fix of almostFactorial = almostFactorial(almostFactoria(...))
-        def fix(fn: Fn) = Fn(fix(fn)) 
-        
+          - Let's begin recursion scheme (not an intro)
         </code></pre>
       </section>
 
 
       <section data-transition="fade-in">
         <h3>Building blocks - Basics</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
             
         final case class class Fix[F[_]](unfix: Fix[F])
         
@@ -730,7 +652,7 @@
 
       <section data-transition="fade-in">
         <h3>Building blocks - Basics</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
             
         sealed trait Ops[A]
 
@@ -744,7 +666,7 @@
 
       <section data-transition="fade-in">
         <h3>Building blocks - Basics</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
             
         sealed trait OpsF[A, B]
 
@@ -761,7 +683,7 @@
 
       <section data-transition="fade-in">
         <h3>Building blocks - Basics</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
             
          type Ops[A] = Fix[Ops[A, *]]
         
@@ -771,85 +693,84 @@
 
       <section data-transition="fade-in">
         <h3>Building blocks - Basics</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;">
             
-         // cata: F[A] => A => Fix[F] => A
-         // para: (Fix[F], A)] => A)
-         // histo: F[Cofree[F, A]] => A
+    cata: F[A]             => A => Fix[F] => A
+    
+    para: F[(Fix[F], A)]   => A => Fix[F] => A
+   
+    histo: F[Cofree[F, A]] => A => Fix[F] => A
         
         </code></pre>
       </section>
 
       <section data-transition="fade-in">
         <h3>Building blocks - Basics</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;">
             
-         // cata: F[V, A] => A => Fix[F[V, *]] => A 
-         // para: (Fix[F[V, *]], A)] => A)         
-         // histo: F[V, Cofree[F[V, *], A]] => A    // unused for this talk
-        
+    cata: F[V, A]                => A => Fix[F[V, *]] => A
+    
+    para: F[(Fix[F[V, *]], A)]   => A => Fix[F[V, *]] => A
+         
+    histo: F[Cofree[F[V, *], A]] => A => Fix[F[V, *]] => A
+
         </code></pre>
       </section>
 
       <section data-transition="fade-in">
         <h3>Building blocks - Basics</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-          def cata[B[_, _], V, A](fix: Fix[B[V, *]])(algebra: F[B[V, A] => A)(implicit B: BiFunctor[B]): A =
-            algebra(B.second(fix.unfix)(cata(_)(algebra)))
+        <pre><code class="hljs scala" style="font-size:20px;">
+
+    def cata[F[_, _], V, A](algebra: F[V, A] => A)(implicit B: BiFunctor[B]): Fix[F[V, *]] => A =
+      fix => algebra(B.second(fix.unfix)(cata.apply(_)(algebra)))
+
         </code></pre>
       </section>
 
       <section data-transition="fade-in">
         <h3>But.. Why?</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
           Tracing was actually pushing some attributes down the children from parents.
-          It's top down logic
         </code></pre>
       </section>
 
       <section data-transition="fade-in">
         <h3>But.. Why?</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
           Tracing is present bottom up too. But then you need to pass it down again to children again.
           Leading us to the terminologies in Attribute Grammer
-        </code></pre>
-      </section>
-
-      <section data-transition="fade-in">
-        <h3>But.. Why?</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-         def cata(algebra: Algebra[F, A]): Fix[F] => A = ???
-         // where, Algebra = F[A] => A
         </code></pre>
       </section>
 
 
       <section data-transition="fade-in">
         <h3>Attribute Grammer</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-          type Algebra[F[_], A]                            = 
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
+          type Algebra[F[_], A] = 
             F[A] => A
 
           type AttAlgebra[F[_], I, S, A] = 
             F[I => (S, A)] => I => (S, A)
+
+         // https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.460.4909&rep=rep1&type=pdf
+         // https://wiki.haskell.org/The_Monad.Reader/Issue4/Why_Attribute_Grammars_Matter   
 
         </code></pre>
       </section>
 
       <section data-transition="fade-in">
         <h3>Oh, you mean folding to a function? </h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
           // Yes, but a bit of formalisation is essential here.
-          // So that all you need is a blind copy of certain methods in papers into Scala
         </code></pre>
       </section>
 
       <section data-transition="fade-in">
         <h3>Let's make our cata specific to attribute grammers </h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
    
         // Only for explanations
-        type TraceAlgebra[F[_], I, D] = F[I => D] => I => D
+        type TraceAlgebra[F[_], I, D] = F[I => S] => I => S
         type Algebra[F[_], A]         = F[A]      => A
 
         def cata[B[_, _], V, A](fix: Fix[B[V, *]])(algebra: Algebra[B[V, *], A])(implicit B: BiFunctor[B]): A =
@@ -864,7 +785,7 @@
 
       <section data-transition="fade-in">
         <h3>Let's make our cata specific to attribute grammers </h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
    
           def cataTrace[B[_, _], V, I, D](
             algebra: TraceAlgebra[B[V, *], I, D]
@@ -876,8 +797,8 @@
       </section>
 
       <section data-transition="fade-in">
-        <h3>Let's define attribute grammer for OpsF and Ops once and for all </h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <h3>Use cataTrace once and for all</h3>
+        <pre><code class="hljs scala" style="font-size:25px;" data-trim data-trim>
 
           // See Ops[A] here is Fix[OpsF[A, *]]
 
@@ -890,19 +811,19 @@
               }
             }
         
-            ops =>  cataTrace(byDepthF)(ops)(f(zero))
+            ops =>  cataTrace(algebra)(ops)(f(zero))
           }
         </code></pre>
       </section>
 
       <section data-transition="fade-in">
         <h3>An example </h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
           val plan0 = 
-           Fix(SumF(Fix(LeafF("query1")), Fix(LeafF("query2"))))
+            sum(leaf("query1")), leaf("query2"))
          
           val plan =
-            Fix(SumF(plan0, Fix(LeafF("query3"))))
+            sum(plan0, leaf("query3"))
 
           println(plan)
           // Fix(NodeF(Fix(NodeF(Fix(LeafF((afsal,3))),Fix(LeafF((thaj,3))))),Fix(LeafF((thaj2,2)))))  
@@ -918,10 +839,13 @@
       </section>
 
       <section data-transition="fade-in">
-        <h3>Why not Para </h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <h3>Attribute Grammer with Paramorphism</h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
 
-          // Para has the history of previous computation inputs, so a small change
+          def paraTrace[F[_, _], V, I, D](
+            f: F[V, (Fix[F[V, *]], I => D)] => I => D
+          ): Fix[F[V, *]] => (I => D) = ???
+
           def trace[A, B](f: B => B)(zero: B)                   : Ops[A] => Ops[(A, B)] = ???
           def trace[A, B](f: (Fix[OpsF[A, *]], B) => B)(zero: B): Ops[A] => Ops[(A, B)] = ???
         </code></pre>
@@ -929,8 +853,8 @@
 
 
       <section data-transition="fade-in">
-        <h3>Satisfy the compiler </h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <h3>Attribute Grammer with Paramorphism </h3>
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
 
           // Para has the history of previous computation inputs, so a small change
           
@@ -952,7 +876,7 @@
 
       <section data-transition="fade-in">
         <h3>Tracing done </h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
 
         type Trace[A] = List[Fix[OpsF[A, *]]]
 
@@ -967,7 +891,7 @@
 
       <section data-transition="fade-in">
         <h3>And we can compose independently</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
 
           type Ops[A] = Fix[OpsF[A, *]]
 
@@ -987,7 +911,7 @@
 
       <section data-transition="fade-in">
         <h3>Program without attributes</h3>
-        <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim>
 
           {
             "sum": [
@@ -1006,7 +930,7 @@
 
       <section data-transition="fade-in">
         <h3>Program with all the attributes</h3>
-        <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim>
           {
             "sum": [
               {
@@ -1074,7 +998,6 @@
         <h3>Track SubComputation Results - Progress Results </h3>
         <pre><code class="hljs scala" style="font-size:22px;">
          // For eac OpsF, annotate it with the result, 
-         // discussed annotations using Compose in various blogs/papers
          final case class Compose[F[_], G[_], A](value: F[G[A]]])
          final case class Fix[F[_]](unfix: F[Fix[F]])
 
@@ -1087,7 +1010,7 @@
 
       <section data-transition="fade-in">
         <h3>Track SubComputation Results</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
 
          // Let's replace Compose with Cofree
          final case class Cofree[F[_], R](result: R, value: F[Cofree[F]])
@@ -1133,8 +1056,8 @@
 
 
       <section data-transition="fade-in">
-        <h3>Strategy</h3>
-        <pre><code class="hljs scala" style="font-size:20px;" data-trim data-trim data-line-numbers="1-40">
+        <h3>Call cataCF instead of cata and no change</h3>
+        <pre><code class="hljs scala" style="font-size:20px;" data-trim data-trim>
           def compile[A](f: Query[A] => OutputStream): Algebra[OpsF[Query[A], *], OutputStream] = ???
 
           val simpleResult = 
@@ -1143,7 +1066,7 @@
          // zio.stream.ZStream$$anon$1@3d74bf60             
 
           val subComputationResult = 
-           cataCofree(compile, plan)
+           cataCF(compile, plan)
            
          // Cofree(
          //   zio.stream.ZStream$$anon$1@3d74bf60,
@@ -1159,17 +1082,17 @@
 
       <section data-transition="fade-in">
         <h3>We already solved performance of sub computation</h3>
-        <pre><code class="hljs scala" style="font-size:20px;" data-trim data-trim data-line-numbers="2">
-          // The name `step` was not coincidental
+        <pre><code class="hljs scala" style="font-size:20px;" data-trim data-trim>
+          // The name `step` was intentional
           def cataCF[F[_, _], V, A](
             step: Algebra[F[V, *], A]
-            ): Fix[F[V, *]] => Cofree[F[V, *], A] = ???
+         ): Fix[F[V, *]] => Cofree[F[V, *], A] = ???
         </code></pre>
       </section>
 
       <section data-transition="fade-in">
         <h3>We already solved performance of sub computation</h3>
-        <pre><code class="hljs scala" style="font-size:20px;" data-trim data-trim data-line-numbers="2">
+        <pre><code class="hljs scala" style="font-size:20px;" data-trim data-trim>
           def compile[A]: Algebra[OpsF[Query[A], *], OutputStream] = ???
       
           def withSubComputationResults = 
@@ -1182,8 +1105,8 @@
       </section>
 
       <section data-transition="fade-in">
-        <h3>We already solved performance of sub computation</h3>
-        <pre><code class="hljs scala" style="font-size:20px;" data-trim data-trim data-line-numbers="2">
+        <h3>Annotate with result with performance</h3>
+        <pre><code class="hljs scala" style="font-size:20px;" data-trim data-trim>
           def unzip(f: OpsF[(A, B)]): (Ops[A], Ops[B]) = ???  
 
           val cofree = 
@@ -1209,7 +1132,7 @@
 
       <section data-transition="fade-in">
         <h3>Program with all the attributes</h3>
-        <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim>
          
           val result = zio.Runtime.Default.unsafeRun(cofree.value._1.run(ZSink.collectAll))
           println(cofree.map(_._2))
@@ -1225,26 +1148,20 @@
       </section>
 
       <section data-transition="fade-in">
-        <h3>Lots of code, but this will exist for future reference</h3>
-        <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-         Well, was that too much of code? Hmm...
-         
-         1. A Fix and cofree type (2 case classes)
-         2. BiFunctor typeclass
-         3. 4 methods:
-           1. def cata 
-           2. def para
-           3. def trace // para + attribute grammer
-           4. def cataCofree // a fold to cofree
-
-         // Total number of lines of code: 41
-
+        <h3>Summary of what we did</h3>
+        <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim>
+         1. Real life example of a functionally designed code
+         2. Making execution plan available
+         3. Making any kind of execution summary available with 
+            - A Fix and Cofree case class
+            - And 4 methods; cataTrace, paraTrace, cataCF and trace
+  
         </code></pre>
       </section>
 
       <section data-transition="fade-in">
         <h3>References</h3>
-        <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
+        <pre><code class="hljs json" style="font-size:22px;" data-trim data-trim>
          1. https://www.reddit.com/r/haskell/comments/8eidw7/recursion_schemes_with_bifunctors/?utm_source=share&utm_medium=ios_app&utm_name=iossmf
          2. https://ris.utwente.nl/ws/files/6142049/meijer91functional.pdf
          3. https://blog.sumtypeofway.com/posts/recursion-schemes-part-4.html (Haskell)
