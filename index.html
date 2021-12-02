@@ -539,13 +539,25 @@
         </code></pre>
       </section>
 
+      <!-- Slide 2 -->
+      <section data-transition="fade-out">
+        <h3>Where are we now?</h3>
+        <pre><code class="hljs scala" style="font-size:22px;">
+        
+      - An execution plan    : DONE
+      - An execution summary : TODO
+
+      </code></pre>
+      </section>
 
       <section data-transition="fade-in">
         <h3>Execution Trace</h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim data-line-numbers="1-40">
-            Push the pathways as a list of `Ops[_]` into the Leaf node.
+        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
             
-            i.e, change `Ops[A]` to `Ops[(List[Ops[_]], A)]`
+          When and why did it hit a datasource? 
+          Answer is a stack fo steps (List[Ops[_]]) that led to the leaf node of ops
+            
+          i.e, change `Ops[A]` to `Ops[(List[Ops[_]], A)]`
         </code></pre>
       </section>
 
