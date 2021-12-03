@@ -574,8 +574,8 @@
 
           def compile(plan: Ops[Query[A]], f: QueryImpl, trace: Trace) = 
             plan match {
-              case Leaf(a)          => 
-                f(a)
+              case Leaf(query)          => 
+                f(query, trace)
               case a @ Sum(left, right) => 
                 compile(left, a :: trace).plus(compile(right, a :: trace), ExecutionStrategy.Parallel)
               case a @ OrElse(left, right) => 
@@ -646,7 +646,7 @@
         <h3>Building blocks - Basics</h3>
         <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
             
-        final case class class Fix[F[_]](unfix: Fix[F])
+        final case class class Fix[F[_]](unfix: F[Fix[F]])
         
         </code></pre>
       </section>
@@ -671,7 +671,7 @@
             
         sealed trait OpsF[A, B]
 
-        case class Leaf[A, B](query: A)          extends OpsF[A, B]
+        case class LeafF[A, B](query: A)         extends OpsF[A, B]
         case class SumF[A, B](left: B, right: B) extends OpsF[A, B]
 
         // Skipping other nodes intentionally 
