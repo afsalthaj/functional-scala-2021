@@ -125,8 +125,7 @@
         <h3>Specific problems</h3>
         <pre><code class="hljs json" style="font-size:25px;" data-trim data-trim>
           
-        Data for a feature/metric can exist in multiple sources,
-         at different time ranges
+        Data for a feature/metric can exist in multiple sources, at different time
   
         Need to collate the results from various sources
         
@@ -207,10 +206,10 @@
           sealed trait DataSource[A] 
 
           object DataSource {
-            final case class Empty[A]()                                  extends DataSource[A]
-            final case class AwsS3[A](metricName: String)                extends DataSource[A]
-            final case class Postgres[A](from: AuroraLogic[A])           extends DataSource[A]
-            final case class InMemoryCache[A](dataSource: DataSource[A]) extends DataSource[A]
+            final case class Empty[A]()                         extends DataSource[A]
+            final case class AwsS3[A](metricName: String)       extends DataSource[A]
+            final case class Postgres[A](from: AuroraLogic[A])  extends DataSource[A]
+            final case class InMemoryCache[A]()                 extends DataSource[A]
           }
 
         </code></pre>
@@ -317,12 +316,12 @@
   sealed trait Ops[A]
 
   object Ops {
-    final case class Noop[A](query: A)                                               extends Ops[A]
-    final case class Sum[A](opss: NonEmptyChunk[Ops[C, A]], exec: ExecutionStrategy) extends Ops[A]
-    final case class Partial[A](ops: Ops[A)                                          extends Ops[A]
-    final case class Union[A](left: Ops[A], right: Ops[A])                           extends Ops[A]
-    final case class Fail[A](message: String)                                        extends Ops[A]
-    final case class OrElse[A](self: Ops[C, A], that: Ops[C, A])                     extends Ops[A]
+    final case class Noop[A](query: A)                                             extends Ops[A]
+    final case class Sum[A](opss: NonEmptyChunk[Ops[A]], exec: ExecutionStrategy)  extends Ops[A]
+    final case class Partial[A](ops: Ops[A)                                        extends Ops[A]
+    final case class Union[A](left: Ops[A], right: Ops[A])                         extends Ops[A]
+    final case class Fail[A](message: String)                                      extends Ops[A]
+    final case class OrElse[A](self: Ops[A], that: Ops[A])                         extends Ops[A]
   }
 
         </code></pre>
@@ -529,7 +528,7 @@
           def compile(plan: Ops[Query[A]], f: QueryImpl): ZStream[Any, Error, A] = 
             plan match {
               case Leaf(a)          => 
-                f(a)
+                f(a)  
               case Sum(left, right) => 
                 compile(left).plus(compile(right), ExecutionStrategy.Parallel)
               case OrElse(left, right) => 
@@ -556,8 +555,10 @@
             
           When and why did it hit a datasource? 
 
-          Answer is make the stack fo steps (List[Ops[_]]) that led to the leaf node,
-          available in leaf node
+          Answer: 
+
+          Make stack of (List[Ops[_]]) that led to leaf node 
+          available at the leaf node (Ops.Noop),
             
           i.e, change `Ops[A]` to `Ops[(List[Ops[_]], A)]`
         </code></pre>
@@ -569,7 +570,7 @@
               
           type Trace = List[Ops[_]]
 
-          type QueryImpl: (Query[A], List[Ops[_]]) => ZStream[Any, Error, A]
+          type QueryImpl: (Query[A], Trace) => ZStream[Any, Error, A]
 
           def compile(plan: Ops[Query[A]], f: QueryImpl, trace: Trace) = 
             plan match {
@@ -625,7 +626,7 @@
              execTimes: Map[Ops[_], Long] // Bottom-up?
           ) = ??? 
 
-          How can I convert the all these `Map`s to "orginal plan with extra details" ?
+          How can I map all these `Map`s to "orginal plan with extra details" ?
 
         </code></pre>
       </section>
@@ -656,8 +657,8 @@
             
         sealed trait Ops[A]
 
-        case class Noop[A](query: A) extends Ops[A]
-        case class Sum[A](left: Ops[A], right: Ops[A]) extends Ops[A]
+        case class Noop[A](query: A) e                    extends Ops[A]
+        case class Sum[A](left: Ops[A], right: Ops[A])    extends Ops[A]
         case class OrElse[A](left: Ops[A], right: Ops[A]) extends Ops[A]
         
         </code></pre>
@@ -670,7 +671,7 @@
             
         sealed trait OpsF[A, B]
 
-        case class Leaf[A, B](query: A) extends OpsF[A, B]
+        case class Leaf[A, B](query: A)          extends OpsF[A, B]
         case class SumF[A, B](left: B, right: B) extends OpsF[A, B]
 
         // Skipping other nodes intentionally 
@@ -767,34 +768,22 @@
 
       <section data-transition="fade-in">
         <h3>Let's make our cata specific to attribute grammers </h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
+        <pre><code class="hljs scala" style="font-size:15px;" data-trim data-trim>
    
         // Only for explanations
         type TraceAlgebra[F[_], I, D] = F[I => S] => I => S
         type Algebra[F[_], A]         = F[A]      => A
 
-        def cata[B[_, _], V, A](fix: Fix[B[V, *]])(algebra: Algebra[B[V, *], A])(implicit B: BiFunctor[B]): A =
-          algebra(B.second(fix.unfix)(cata(_)(algebra)))
+        def cata[F[_, _], V, A](algebra: Algebra[F[V, *], A])(implicit B: BiFunctor[FromS3]): Fix[F[V, *]] => A =
+          fix => algebra(B.second(fix.unfix)(cata(_)(algebra)))
     
-        def cataTrace[B[_, _], V, I, D](fix: Fix[B[V, *]])(algebra: TraceAlgebra[B[V, *], I, D])(implicit B: BiFunctor[B]): (I => D) = { 
-          algebra(B.second(fix.unfix)(cataTrace(algebra)(B)(_)))
+        def cataTrace[F[_, _], V, I, S](algebra: TraceAlgebra[F[V, *], I, S])(implicit B: BiFunctor[F]): Fix[F[V, *]] => (I => S) = { 
+          fix => algebra(B.second(fix.unfix)(cataTrace(algebra)(B)(_)))
         }
 
         </code></pre>
       </section>
 
-      <section data-transition="fade-in">
-        <h3>Let's make our cata specific to attribute grammers </h3>
-        <pre><code class="hljs scala" style="font-size:22px;" data-trim data-trim>
-   
-          def cataTrace[B[_, _], V, I, D](
-            algebra: TraceAlgebra[B[V, *], I, D]
-           )(implicit B: BiFunctor[B]): Fix[B[V, *]] => (I => D) = { 
-             fix => algebra(B.second(fix.unfix)(cataTrace(algebra)(B)(_)))
-          }
-
-        </code></pre>
-      </section>
 
       <section data-transition="fade-in">
         <h3>Use cataTrace once and for all</h3>
@@ -1096,10 +1085,10 @@
           def compile[A]: Algebra[OpsF[Query[A], *], OutputStream] = ???
       
           def withSubComputationResults = 
-            cataCofree(algebra, plan)
+            cataCF(algebra, plan)
 
           val withLog = 
-            cataCofree(fa => log.info("Running ${fa}") *> compile(fa) <* log.info("Done"), plan)
+            cataCF(fa => log.info("Running ${fa}") *> compile(fa) <* log.info("Done"), plan)
 
         </code></pre>
       </section>
@@ -1110,7 +1099,7 @@
           def unzip(f: OpsF[(A, B)]): (Ops[A], Ops[B]) = ???  
 
           val cofree = 
-            cataCofree(fa => {
+            cataCF(fa => {
               val execTime = new AtomicLong(0)
           
               val stream = ZStream.fromEffect {
@@ -1154,7 +1143,7 @@
          2. Making execution plan available
          3. Making any kind of execution summary available with 
             - A Fix and Cofree case class
-            - And 4 methods; cataTrace, paraTrace, cataCF and trace
+            - And 3 methods; para, paraTraceAttributeGrammer and cataCF
   
         </code></pre>
       </section>
